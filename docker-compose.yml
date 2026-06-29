@@ -1,0 +1,34 @@
+version: '3.8'
+
+# --- NETWORK ISOLATION DEFINITIONS ---
+networks:
+  dmz-net:
+    driver: bridge
+    internal: false # Allows inbound traffic from the host machine (browser access)
+  backend-net:
+    driver: bridge
+    internal: true  # STRICT ISOLATION: Completely cuts off this network from the internet
+
+services:
+  # --- FRONTEND SERVICE (REVERSE PROXY) ---
+  frontend:
+    image: secure-frontend
+    container_name: secure-frontend-app
+    ports:
+      - "8080:8080" # Maps host port 8080 to container port 8080
+    networks:
+      - dmz-net # Sits in the DMZ so users can reach the UI
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # --- BACKEND SERVICE (PRIVATE API) ---
+  backend:
+    image: secure-backend
+    container_name: secure-backend-api
+    networks:
+      - dmz-net     # Connected to DMZ *only* so Nginx can talk to it
+      - backend-net # Connected to backend network for future database/internal growth
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true # Prevents container processes from gaining escalated root rights
